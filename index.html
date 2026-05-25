@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🪐 Antigravity Lineage | 1-17號極致線上樂透系統</title>
+  <!-- 引入 Google Fonts (Outfit & Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 背景發光裝飾球 -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <div class="app-container">
+    <!-- 頂部導覽列 -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-logo">🪐</span>
+        <div class="brand-text">
+          <h1>ANTIGRAVITY LINEAGE</h1>
+          <p>1~17號精巧樂透系統</p>
+        </div>
+      </div>
+      
+      <!-- 視角切換器 -->
+      <nav class="view-switcher">
+        <button id="tab-player" class="tab-btn active" data-view="player">
+          <span class="tab-icon">🎮</span> 玩家投注區
+        </button>
+        <button id="tab-admin" class="tab-btn" data-view="admin">
+          <span class="tab-icon">💼</span> 管理員後台
+        </button>
+      </nav>
+
+      <!-- 額外設置按鈕 -->
+      <div class="header-actions">
+        <button id="btn-settings" class="icon-btn" title="系統設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- 主要內容區 -->
+    <main class="app-content">
+      
+      <!-- ================= 玩家投注視角 ================= -->
+      <section id="view-player" class="view-pane active">
+        <div class="grid-layout">
+          <!-- 左側：投注選號卡片 -->
+          <div class="card glass-card fade-in">
+            <div class="card-header">
+              <h2 class="card-title">✍️ 填寫投注單</h2>
+              <p class="card-subtitle">請挑選 5 個號碼並選擇投注柱數</p>
+            </div>
+            
+            <form id="bet-form" class="card-body">
+              <!-- 選擇活動期數 -->
+              <div class="form-group">
+                <label for="player-draw-select">🎯 選擇投注活動期數</label>
+                <div class="select-wrapper">
+                  <select id="player-draw-select" required>
+                    <!-- 動態載入進行中的活動 -->
+                  </select>
+                </div>
+              </div>
+
+              <!-- 投注人姓名 -->
+              <div class="form-group">
+                <label for="player-name">👤 投注人姓名 / 暱稱</label>
+                <input type="text" id="player-name" placeholder="請輸入姓名，以便中獎核對" autocomplete="off" required>
+              </div>
+
+              <!-- 1~17 點選選號區 -->
+              <div class="form-group">
+                <div class="label-with-badge">
+                  <label>🔢 挑選 5 個幸運號碼</label>
+                  <span id="selected-badge" class="badge">已選 0 / 5</span>
+                </div>
+                <div class="number-grid" id="number-grid-player">
+                  <!-- JS 動態生成 1~17 號按鈕 -->
+                </div>
+              </div>
+
+              <!-- 下注柱數 Stepper -->
+              <div class="form-group">
+                <label for="bet-multiplier">💎 投注下注數 (幾柱)</label>
+                <div class="stepper">
+                  <button type="button" class="stepper-btn" id="btn-dec">—</button>
+                  <input type="number" id="bet-multiplier" value="1" min="1" max="1000" readonly>
+                  <button type="button" class="stepper-btn" id="btn-inc">+</button>
+                </div>
+                <p class="form-help-text">下注柱數越多，中獎時彩金將依倍數加乘計算</p>
+              </div>
+
+              <!-- 按鈕區 -->
+              <div class="form-actions">
+                <button type="button" id="btn-clear-bet" class="btn btn-secondary">🧹 清除重選</button>
+                <button type="submit" id="btn-submit-bet" class="btn btn-primary">🚀 立即送出投注</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- 右側：彩票預覽與最新投注動態 -->
+          <div class="side-panel">
+            <!-- 擬真電子彩票 -->
+            <div class="ticket glass-card fade-in" id="ticket-preview">
+              <div class="ticket-watermark">LINEAGE</div>
+              <div class="ticket-header">
+                <h3>LINEAGE LOTTERY TICKET</h3>
+                <div class="ticket-status-stamp" id="ticket-status">DRAFT</div>
+              </div>
+              
+              <div class="ticket-divider"></div>
+              
+              <div class="ticket-details">
+                <div class="detail-row">
+                  <span class="detail-label">活動期號</span>
+                  <span class="detail-value" id="ticket-draw-id">—</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">投注姓名</span>
+                  <span class="detail-value text-glow" id="ticket-player-name">—</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">投注倍數</span>
+                  <span class="detail-value" id="ticket-multiplier">1 柱</span>
+                </div>
+              </div>
+
+              <div class="ticket-divider"></div>
+
+              <div class="ticket-numbers-title">SELECTED NUMBERS</div>
+              <div class="ticket-numbers" id="ticket-numbers-container">
+                <span class="ticket-num empty">—</span>
+                <span class="ticket-num empty">—</span>
+                <span class="ticket-num empty">—</span>
+                <span class="ticket-num empty">—</span>
+                <span class="ticket-num empty">—</span>
+              </div>
+
+              <div class="ticket-divider"></div>
+
+              <div class="ticket-footer">
+                <div class="barcode">
+                  <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                </div>
+                <div class="ticket-timestamp" id="ticket-time">REAL-TIME SYSTEM PREVIEW</div>
+              </div>
+            </div>
+
+            <!-- 最新投注動態 -->
+            <div class="card glass-card fade-in" style="margin-top: 1.5rem; flex: 1;">
+              <div class="card-header" style="padding-bottom: 0.75rem;">
+                <h3 class="card-title" style="font-size: 1.1rem;">🔔 即時投注跑馬燈</h3>
+              </div>
+              <div class="card-body scrollable-panel" id="recent-bets-ticker">
+                <!-- JS 動態生成最新投注 -->
+                <div class="empty-state">尚無近期投注紀錄</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 管理員後台視角 ================= -->
+      <section id="view-admin" class="view-pane">
+        <div class="admin-grid-layout">
+          <!-- 左側：活動新增與開獎主控制台 -->
+          <div class="admin-control-col">
+            
+            <!-- 新增活動卡片 -->
+            <div class="card glass-card fade-in">
+              <div class="card-header">
+                <h2 class="card-title">➕ 建立新彩票活動</h2>
+                <p class="card-subtitle">設定流水號與名稱發布新彩票活動</p>
+              </div>
+              <div class="card-body">
+                <form id="create-draw-form">
+                  <div class="form-row-2">
+                    <div class="form-group">
+                      <label for="draw-id-input">🆔 活動流水號</label>
+                      <input type="text" id="draw-id-input" placeholder="例如: 2026052501" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                      <label for="draw-name-input">🏷️ 活動說明名稱</label>
+                      <input type="text" id="draw-name-input" placeholder="例如: 週末限時大抽獎" required autocomplete="off">
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-full-width">✨ 建立新活動</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- 活動列表卡片 -->
+            <div class="card glass-card fade-in" style="margin-top: 1.5rem;">
+              <div class="card-header">
+                <h2 class="card-title">📂 彩票活動列表</h2>
+                <p class="card-subtitle">選擇期數以檢視投注、管理有效性及開獎</p>
+              </div>
+              <div class="card-body scrollable-panel" style="max-height: 380px;">
+                <div class="draw-list-container" id="admin-draw-list">
+                  <!-- JS 動態載入期數卡片 -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 開獎控制面板 -->
+            <div class="card glass-card fade-in border-accent-gold" id="drawing-panel" style="margin-top: 1.5rem; display: none;">
+              <div class="card-header">
+                <h2 class="card-title text-glow-gold">🎉 執行開獎控制台</h2>
+                <p class="card-subtitle">請手動點選本期開出的 5 個中獎號碼</p>
+              </div>
+              <div class="card-body">
+                <div class="draw-status-banner">
+                  當前選取期數：<strong id="drawing-draw-id">—</strong> (<span id="drawing-draw-name">—</span>)
+                </div>
+                
+                <div class="form-group" style="margin-top: 1rem;">
+                  <div class="label-with-badge">
+                    <label>選定開獎號碼</label>
+                    <span id="winning-selected-badge" class="badge badge-gold">已選 0 / 5</span>
+                  </div>
+                  <div class="number-grid gold-theme" id="number-grid-winning">
+                    <!-- JS 動態生成 1~17 號開獎按鈕 -->
+                  </div>
+                </div>
+
+                <div class="form-actions" style="margin-top: 1.5rem;">
+                  <button type="button" id="btn-reset-winning-selection" class="btn btn-secondary">重設選擇</button>
+                  <button type="button" id="btn-submit-winning" class="btn btn-gold btn-full-width">🔔 確認封簽並發佈開獎</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側：投注清單與中獎報表 -->
+          <div class="admin-data-col">
+            
+            <!-- 投注名單管理卡片 -->
+            <div class="card glass-card fade-in">
+              <div class="card-header flex-header">
+                <div>
+                  <h2 class="card-title">📋 投注名單與有效性管理</h2>
+                  <p class="card-subtitle">檢視並設定玩家投注有效性 (剔除無效投注)</p>
+                </div>
+                <span class="badge" id="bets-count-badge">0 筆投注</span>
+              </div>
+              
+              <div class="card-body">
+                <div class="table-responsive">
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>投注人</th>
+                        <th>投注號碼</th>
+                        <th>下注柱數</th>
+                        <th>投注時間</th>
+                        <th>是否有效</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="bets-table-body">
+                      <!-- JS 動態生成投注清單 -->
+                      <tr>
+                        <td colspan="6" class="table-empty">請先在左側選擇一個活動期數</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- 中獎名單統計分析卡片 (只在選擇已開獎期數時顯示) -->
+            <div class="card glass-card fade-in border-accent-green" id="winner-report-card" style="margin-top: 1.5rem; display: none;">
+              <div class="card-header border-bottom-green">
+                <div class="flex-header">
+                  <div>
+                    <h2 class="card-title text-glow-green">🏆 本期中獎名單統計分析表</h2>
+                    <p class="card-subtitle" id="winner-report-subtitle">期數：— | 開獎號碼：—</p>
+                  </div>
+                  <span class="badge badge-green" id="winner-draw-badge">已開獎</span>
+                </div>
+              </div>
+              
+              <div class="card-body">
+                <!-- 中獎卡片三欄流式排版 -->
+                <div class="winners-container">
+                  
+                  <!-- 5 碼（頭獎） -->
+                  <div class="winner-tier-card tier-5">
+                    <div class="tier-header">
+                      <span class="tier-icon">🥇</span>
+                      <span class="tier-title">中 5 個號碼 (頭獎)</span>
+                      <span class="tier-count badge badge-gold" id="count-tier-5">0 人</span>
+                    </div>
+                    <div class="tier-body scrollable-panel" id="list-tier-5">
+                      <!-- 中 5 碼名單 -->
+                    </div>
+                  </div>
+
+                  <!-- 4 碼（二獎） -->
+                  <div class="winner-tier-card tier-4">
+                    <div class="tier-header">
+                      <span class="tier-icon">🥈</span>
+                      <span class="tier-title">中 4 個號碼 (二獎)</span>
+                      <span class="tier-count badge badge-silver" id="count-tier-4">0 人</span>
+                    </div>
+                    <div class="tier-body scrollable-panel" id="list-tier-4">
+                      <!-- 中 4 碼名單 -->
+                    </div>
+                  </div>
+
+                  <!-- 3 碼（三獎） -->
+                  <div class="winner-tier-card tier-3">
+                    <div class="tier-header">
+                      <span class="tier-icon">🥉</span>
+                      <span class="tier-title">中 3 個號碼 (三獎)</span>
+                      <span class="tier-count badge badge-bronze" id="count-tier-3">0 人</span>
+                    </div>
+                    <div class="tier-body scrollable-panel" id="list-tier-3">
+                      <!-- 中 3 碼名單 -->
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 頁尾 -->
+    <footer class="app-footer">
+      <p>© 2026 Antigravity Lineage System. 保留所有權利。</p>
+      <p>管理登入密碼驗證模組已啟動 | 狀態：連線中</p>
+    </footer>
+  </div>
+
+  <!-- ================= 管理驗證對話框 (PIN Modal) ================= -->
+  <div class="modal-overlay" id="pin-modal">
+    <div class="modal glass-card">
+      <div class="modal-header">
+        <h3 class="modal-title">🔐 管理權限安全性驗證</h3>
+      </div>
+      <div class="modal-body">
+        <p>此為敏感操作區域，請輸入管理員 PIN 碼以取得授權：</p>
+        <div class="pin-input-container">
+          <input type="password" id="pin-input" maxlength="8" placeholder="預設密碼為 8888" autofocus autocomplete="off">
+        </div>
+        <p id="pin-error-msg" class="text-error" style="display: none;">❌ PIN 碼錯誤，請重新輸入</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-pin-cancel" class="btn btn-secondary">取消</button>
+        <button id="btn-pin-submit" class="btn btn-primary">驗證並進入</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 系統設定對話框 (Settings Modal) ================= -->
+  <div class="modal-overlay" id="settings-modal">
+    <div class="modal glass-card">
+      <div class="modal-header">
+        <h3 class="modal-title">⚙️ 系統進階設定</h3>
+        <button class="close-modal-btn" id="btn-close-settings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- 變更管理密碼 -->
+        <div class="settings-section">
+          <h4>🔑 變更管理員 PIN 碼</h4>
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label for="old-pin">目前密碼</label>
+            <input type="password" id="old-pin" placeholder="輸入舊密碼">
+          </div>
+          <div class="form-group">
+            <label for="new-pin">新密碼</label>
+            <input type="password" id="new-pin" placeholder="新密碼 (至少 4 位數)">
+          </div>
+          <button id="btn-change-pin" class="btn btn-secondary" style="margin-top: 0.5rem;">更新 PIN 碼</button>
+        </div>
+
+        <div class="settings-divider"></div>
+
+        <!-- 重設資料庫 -->
+        <div class="settings-section">
+          <h4>⚠️ 危險區域 (Danger Zone)</h4>
+          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 0.75rem;">重設資料庫將會清除所有彩票期數與下注紀錄，並還原成系統預設的種子資料。</p>
+          <button id="btn-reset-db" class="btn btn-danger">🔥 清空並重設資料庫</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 成功粒子動畫提示容器 -->
+  <div id="toast-container"></div>
+
+  <!-- 載入應用程式 JS -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>
