@@ -246,8 +246,8 @@ export const db = {
       if (!playerName || playerName.trim() === '') {
         throw new Error('請輸入投注人姓名！');
       }
-      if (!Array.isArray(numbers) || numbers.length !== 5) {
-        throw new Error('必須挑選剛好 5 個號碼！');
+      if (!Array.isArray(numbers) || numbers.length < 5) {
+        throw new Error('最少必須挑選 5 個號碼！');
       }
       const mult = parseInt(multiplier, 10);
       if (isNaN(mult) || mult <= 0) {

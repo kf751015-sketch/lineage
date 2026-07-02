@@ -1,7 +1,7 @@
 /**
  * 1-17號彩票與投注系統 - 核心前端邏輯 (app.js)
  * 控制視圖切換、表單驗證、選號互動、中獎核對計算與炫麗動畫。
- * 升級為 Async/Await 架構，無縫支援 Local 模式與共享伺服器模式。
+ * 升級版：支援包牌選號（選擇大於等於5個號碼），自動計算排列組合組數與投注總金額。
  */
 
 import { db } from './db.js';
@@ -13,7 +13,7 @@ const state = {
   selectedWinningNumbers: [],
   currentAdminSelectedDrawId: null,
   isAdminAuthenticated: false,
-  pendingView: null // 記錄等待密碼驗證通過後切換的視圖
+  pendingView: null
 };
 
 // --- DOM 節點快取 ---
@@ -31,9 +31,10 @@ const DOM = {
   playerNameInput: document.getElementById('player-name'),
   numberGridPlayer: document.getElementById('number-grid-player'),
   selectedBadge: document.getElementById('selected-badge'),
-  betMultiplierInput: document.getElementById('bet-multiplier'),
-  btnDec: document.getElementById('btn-dec'),
-  btnInc: document.getElementById('btn-inc'),
+  
+  // 組合組數與金額計算
+  summaryCombos: document.getElementById('summary-combos'),
+  summaryAmount: document.getElementById('summary-amount'),
   btnClearBet: document.getElementById('btn-clear-bet'),
   btnSubmitBet: document.getElementById('btn-submit-bet'),
   
@@ -42,6 +43,7 @@ const DOM = {
   ticketDrawId: document.getElementById('ticket-draw-id'),
   ticketPlayerName: document.getElementById('ticket-player-name'),
   ticketMultiplier: document.getElementById('ticket-multiplier'),
+  ticketAmount: document.getElementById('ticket-amount'),
   ticketNumbersContainer: document.getElementById('ticket-numbers-container'),
   ticketStatus: document.getElementById('ticket-status'),
   ticketTime: document.getElementById('ticket-time'),
@@ -130,33 +132,37 @@ function generateNumberGrid(container, type) {
 // --- 處理選號點擊邏輯 ---
 function handleNumberClick(num, element, type) {
   if (type === 'player') {
-    // 玩家選號
+    // 玩家選號 (可選超過 5 個)
     const index = state.selectedPlayerNumbers.indexOf(num);
     if (index > -1) {
       state.selectedPlayerNumbers.splice(index, 1);
       element.classList.remove('selected');
     } else {
-      if (state.selectedPlayerNumbers.length >= 5) {
-        showToast('⚠️ 最多只能挑選 5 個幸運號碼！', 'warning');
-        return;
-      }
       state.selectedPlayerNumbers.push(num);
       element.classList.add('selected');
     }
     state.selectedPlayerNumbers.sort((a, b) => a - b);
     
-    // 更新 UI 狀態
-    DOM.selectedBadge.textContent = `已選 ${state.selectedPlayerNumbers.length} / 5`;
-    if (state.selectedPlayerNumbers.length === 5) {
+    // 更新 UI 選擇數量標章
+    DOM.selectedBadge.textContent = `已選 ${state.selectedPlayerNumbers.length} / 17`;
+    if (state.selectedPlayerNumbers.length >= 5) {
       DOM.selectedBadge.classList.add('badge-gold');
     } else {
       DOM.selectedBadge.classList.remove('badge-gold');
     }
     
+    // 排列組合與總金額動態計算
+    const N = state.selectedPlayerNumbers.length;
+    const combos = C(N, 5);
+    const amount = combos * 10000;
+    
+    DOM.summaryCombos.textContent = `${combos} 組`;
+    DOM.summaryAmount.textContent = `${amount.toLocaleString()} 元`;
+    
     updateTicketPreview();
     
   } else if (type === 'winning') {
-    // 管理員開獎選號
+    // 管理員開獎選號 (剛好 5 個)
     const index = state.selectedWinningNumbers.indexOf(num);
     if (index > -1) {
       state.selectedWinningNumbers.splice(index, 1);
@@ -213,8 +219,6 @@ function setupEventListeners() {
     await refreshRecentBetsTicker();
   });
   
-  DOM.btnDec.addEventListener('click', () => adjustMultiplier(-1));
-  DOM.btnInc.addEventListener('click', () => adjustMultiplier(1));
   DOM.btnClearBet.addEventListener('click', clearPlayerSelection);
   DOM.betForm.addEventListener('submit', handleBetSubmit);
 
@@ -319,21 +323,14 @@ async function handleResetDatabase() {
 }
 
 // --- 玩家投注選號輔助邏輯 ---
-function adjustMultiplier(amount) {
-  let val = parseInt(DOM.betMultiplierInput.value, 10) || 1;
-  val += amount;
-  if (val < 1) val = 1;
-  if (val > 1000) val = 1000;
-  DOM.betMultiplierInput.value = val;
-  updateTicketPreview();
-}
-
 function clearPlayerSelection() {
   state.selectedPlayerNumbers = [];
-  DOM.selectedBadge.textContent = '已選 0 / 5';
+  DOM.selectedBadge.textContent = '已選 0 / 17';
   DOM.selectedBadge.classList.remove('badge-gold');
   
-  // 取消所有球的選中 class
+  DOM.summaryCombos.textContent = '0 組';
+  DOM.summaryAmount.textContent = '0 元';
+  
   DOM.numberGridPlayer.querySelectorAll('.num-ball').forEach(btn => {
     btn.classList.remove('selected');
   });
@@ -345,25 +342,32 @@ function clearPlayerSelection() {
 function updateTicketPreview() {
   const selectedDrawId = DOM.playerDrawSelect.value;
   const name = DOM.playerNameInput.value.trim() || '—';
-  const multiplier = DOM.betMultiplierInput.value;
+  
+  const N = state.selectedPlayerNumbers.length;
+  const combos = C(N, 5);
+  const amount = combos * 10000;
   
   DOM.ticketDrawId.textContent = selectedDrawId ? `第 ${selectedDrawId} 期` : '—';
   DOM.ticketPlayerName.textContent = name;
-  DOM.ticketMultiplier.textContent = `${multiplier} 柱`;
+  DOM.ticketMultiplier.textContent = `${combos} 組`;
+  DOM.ticketAmount.textContent = `${amount.toLocaleString()} 元`;
   
-  // 更新投注號碼球
+  // 更新投注號碼球 (動態支援超過 5 個號碼)
   DOM.ticketNumbersContainer.innerHTML = '';
-  for (let i = 0; i < 5; i++) {
-    const numSpan = document.createElement('span');
-    if (i < state.selectedPlayerNumbers.length) {
-      const num = state.selectedPlayerNumbers[i];
-      numSpan.className = 'ticket-num filled';
-      numSpan.textContent = num < 10 ? '0' + num : num;
-    } else {
+  if (state.selectedPlayerNumbers.length === 0) {
+    for (let i = 0; i < 5; i++) {
+      const numSpan = document.createElement('span');
       numSpan.className = 'ticket-num empty';
       numSpan.textContent = '—';
+      DOM.ticketNumbersContainer.appendChild(numSpan);
     }
-    DOM.ticketNumbersContainer.appendChild(numSpan);
+  } else {
+    state.selectedPlayerNumbers.forEach(num => {
+      const numSpan = document.createElement('span');
+      numSpan.className = 'ticket-num filled';
+      numSpan.textContent = num < 10 ? '0' + num : num;
+      DOM.ticketNumbersContainer.appendChild(numSpan);
+    });
   }
   
   DOM.ticketStatus.textContent = 'DRAFT';
@@ -377,7 +381,6 @@ async function handleBetSubmit(e) {
   
   const drawId = DOM.playerDrawSelect.value;
   const playerName = DOM.playerNameInput.value.trim();
-  const multiplier = parseInt(DOM.betMultiplierInput.value, 10);
   
   if (!drawId) {
     showToast('❌ 請先選擇一個進行中的投注期數！', 'danger');
@@ -388,29 +391,29 @@ async function handleBetSubmit(e) {
     DOM.playerNameInput.focus();
     return;
   }
-  if (state.selectedPlayerNumbers.length !== 5) {
-    showToast('❌ 請完整選取 5 個幸運號碼！', 'danger');
+  if (state.selectedPlayerNumbers.length < 5) {
+    showToast('❌ 請至少挑選 5 個幸運號碼！', 'danger');
     return;
   }
   
+  // 計算排列組合組數
+  const combos = C(state.selectedPlayerNumbers.length, 5);
+  
   try {
-    const newBet = await db.addBet(drawId, playerName, state.selectedPlayerNumbers, multiplier);
+    const newBet = await db.addBet(drawId, playerName, state.selectedPlayerNumbers, combos);
     
     // 渲染成功效果：彩票狀態與粒子特效
     DOM.ticketStatus.textContent = 'SUBMITTED';
     DOM.ticketStatus.classList.add('submitted');
     DOM.ticketTime.textContent = new Date(newBet.createdAt).toLocaleString();
     
-    // 粒子爆炸效果
     createParticleExplosion(DOM.btnSubmitBet);
     
-    showToast(`🎉 投注成功送出！(預設審核中，待管理員確認後生效)`, 'success');
+    showToast(`🎉 投注成功送出！共 ${combos} 組 (預設審核中，待確認後生效)`, 'success');
     
-    // 重設選號與欄位，但保留姓名便於連續投注
+    // 重設選號與欄位，但保留姓名
     clearPlayerSelection();
-    DOM.betMultiplierInput.value = 1;
     
-    // 重新載入最新動態
     await refreshRecentBetsTicker();
     
   } catch (error) {
@@ -444,7 +447,6 @@ async function refreshRecentBetsTicker() {
     
     let numbersHtml = '';
     bet.numbers.forEach(num => {
-      // 如果該期已開獎，標記中獎球色
       const isMatch = draw && draw.winningNumbers && draw.winningNumbers.includes(num);
       numbersHtml += `<span class="ticker-num-ball ${isMatch ? 'match' : ''}">${num < 10 ? '0' + num : num}</span>`;
     });
@@ -457,7 +459,7 @@ async function refreshRecentBetsTicker() {
       <div class="ticker-numbers">
         ${numbersHtml}
       </div>
-      <span class="ticker-multiplier">${bet.multiplier} 柱</span>
+      <span class="ticker-multiplier">${bet.multiplier} 組</span>
     `;
     DOM.recentBetsTicker.appendChild(item);
   });
@@ -482,7 +484,6 @@ async function refreshDrawSelections() {
     DOM.playerDrawSelect.appendChild(opt);
   });
   
-  // 保留原有選擇，如果依然存在
   if (previousVal && draws.some(d => d.id === previousVal)) {
     DOM.playerDrawSelect.value = previousVal;
   }
@@ -521,8 +522,6 @@ async function handleCreateDraw(e) {
     
     await refreshAdminDrawList();
     await refreshDrawSelections();
-    
-    // 自動選取新建立的期數
     await selectAdminDraw(id);
     
   } catch (error) {
@@ -544,7 +543,6 @@ async function refreshAdminDrawList() {
     const item = document.createElement('div');
     item.className = `draw-item ${draw.status} ${state.currentAdminSelectedDrawId === draw.id ? 'selected' : ''}`;
     
-    // 如果是已開獎期數，顯示開出獎號球
     let winningHtml = '';
     if (draw.status === 'completed' && draw.winningNumbers) {
       winningHtml = `<div class="draw-winning-balls">`;
@@ -570,7 +568,6 @@ async function refreshAdminDrawList() {
       </div>
     `;
     
-    // 點擊期數卡片載入管理詳情
     item.addEventListener('click', async (e) => {
       if (e.target.classList.contains('draw-delete-btn') || e.target.parentElement.classList.contains('draw-delete-btn')) {
         e.stopPropagation();
@@ -591,45 +588,36 @@ async function selectAdminDraw(drawId) {
   const draws = await db.getDraws();
   const draw = draws.find(d => d.id === drawId);
   
-  await refreshAdminDrawList(); // 最簡單的維持 class 狀態方式
+  await refreshAdminDrawList();
   
   if (!draw) return;
   
-  // 更新開獎面板資訊與中獎名單
   if (draw.status === 'active') {
     DOM.drawingPanel.style.display = 'block';
     DOM.winnerReportCard.style.display = 'none';
-    
     DOM.drawingDrawId.textContent = draw.id;
     DOM.drawingDrawName.textContent = draw.name;
-    
     resetWinningSelection();
   } else {
-    // 已開獎，顯示中獎報表
     DOM.drawingPanel.style.display = 'none';
     DOM.winnerReportCard.style.display = 'block';
-    
     DOM.winnerReportSubtitle.textContent = `期數：${draw.id} | 開獎號碼：${draw.winningNumbers.map(n => n < 10 ? '0' + n : n).join(', ')}`;
-    
-    // 分析並渲染中獎名單
     await renderWinnersReport(draw);
   }
   
-  // 載入該期玩家投注清單
   await refreshBetsListTable(drawId);
 }
 
-// --- 刪除期數 (流水號) 功能 ---
+// --- 刪除期數 ---
 async function handleDeleteDraw(drawId) {
   const pin = prompt(`⚠️ 危險動作！刪除期數 [第 ${drawId} 期] 會連同該期所有玩家投注資料一併「永久抹除」！\n請輸入管理員 PIN 碼以確認執行：`);
   
-  if (pin === null) return; // 點擊取消
+  if (pin === null) return;
   
   if (await db.verifyAdminPin(pin)) {
     await db.deleteDraw(drawId);
     showToast(`🗑️ 期數 ${drawId} 資料已成功永久刪除！`, 'danger');
     
-    // 如果刪除的是當前選取的管理期數，重置選取狀態
     if (state.currentAdminSelectedDrawId === drawId) {
       state.currentAdminSelectedDrawId = null;
       DOM.drawingPanel.style.display = 'none';
@@ -665,7 +653,6 @@ async function refreshBetsListTable(drawId) {
       tr.className = 'row-invalid';
     }
     
-    // 渲染號碼球（如果該期已開獎，核對是否中獎並高亮）
     let numbersHtml = '<div class="table-numbers">';
     bet.numbers.forEach(num => {
       const isMatch = draw && draw.winningNumbers && draw.winningNumbers.includes(num);
@@ -678,7 +665,7 @@ async function refreshBetsListTable(drawId) {
     tr.innerHTML = `
       <td style="font-weight: 700;">${escapeHtml(bet.playerName)}</td>
       <td>${numbersHtml}</td>
-      <td class="table-multiplier">${bet.multiplier} 柱</td>
+      <td class="table-multiplier">${bet.multiplier} 組</td>
       <td class="text-muted" style="font-size: 0.75rem;">${formattedTime}</td>
       <td>
         <label class="switch">
@@ -691,12 +678,10 @@ async function refreshBetsListTable(drawId) {
       </td>
     `;
     
-    // 綁定有效性開關 Toggle 事件
     const toggleInput = tr.querySelector('.toggle-validity');
     toggleInput.addEventListener('change', async () => {
       await db.toggleBetActive(bet.id, toggleInput.checked);
       
-      // 動態更新該行不透明度
       if (toggleInput.checked) {
         tr.classList.remove('row-invalid');
         showToast(`✅ 已啟用並核准 ${bet.playerName} 的投注`, 'success');
@@ -705,16 +690,13 @@ async function refreshBetsListTable(drawId) {
         showToast(`❌ 已將 ${bet.playerName} 的投注設為審核無效`, 'warning');
       }
       
-      // 如果該期已開獎，因為投注有效性改變，必須立即重新計算中獎名單
       if (draw && draw.status === 'completed') {
         await renderWinnersReport(draw);
       }
       
-      // 更新即時跑馬燈與投注清單
       await refreshRecentBetsTicker();
     });
     
-    // 綁定單獨刪除下注事件
     const deleteBtn = tr.querySelector('.bet-delete-btn');
     deleteBtn.addEventListener('click', async () => {
       await handleDeleteSingleBet(bet.id, bet.playerName);
@@ -730,12 +712,10 @@ async function handleDeleteSingleBet(betId, playerName) {
     await db.deleteSingleBet(betId);
     showToast(`🗑️ 已刪除 ${playerName} 的投注！`, 'danger');
     
-    // 重新載入 UI
     await refreshBetsListTable(state.currentAdminSelectedDrawId);
     await refreshRecentBetsTicker();
     
-    // 如果已開獎，重新整理分析報表
-    const draw = await db.db.getDrawById(state.currentAdminSelectedDrawId);
+    const draw = await db.getDrawById(state.currentAdminSelectedDrawId);
     if (draw && draw.status === 'completed') {
       await renderWinnersReport(draw);
     }
@@ -763,17 +743,12 @@ async function handleSubmitWinningNumbers() {
     return;
   }
   
-  const draw = await db.getDrawById(drawId);
-  
   if (confirm(`🎉 確認為期數 [第 ${drawId} 期] 封簽開獎嗎？\n開獎號碼：${state.selectedWinningNumbers.join(', ')}\n封簽開獎後，該期將無法再接收新投注！`)) {
     try {
       await db.completeDraw(drawId, state.selectedWinningNumbers);
       showToast(`🏆 第 ${drawId} 期已成功開獎！並已產出中獎名單統計`, 'success');
       
-      // 切換為已開獎狀態視圖
       await selectAdminDraw(drawId);
-      
-      // 更新玩家選單與跑馬燈
       await refreshDrawSelections();
       await autoSelectDefaultDraw();
       await refreshRecentBetsTicker();
@@ -784,10 +759,9 @@ async function handleSubmitWinningNumbers() {
   }
 }
 
-// --- 分析並渲染中獎名單報表 ---
+// --- 分析並渲染中獎名單報表 (中獎排列組合計算) ---
 async function renderWinnersReport(draw) {
   const winningNumbers = draw.winningNumbers;
-  // 只比對「有效」投注！
   const bets = (await db.getBetsByDrawId(draw.id)).filter(b => b.isValid === true);
   
   // 三個獎項分類陣列
@@ -797,25 +771,56 @@ async function renderWinnersReport(draw) {
     3: []  // 中 3 碼 (三獎)
   };
   
+  let totalTier5Wins = 0;
+  let totalTier4Wins = 0;
+  let totalTier3Wins = 0;
+  
   bets.forEach(bet => {
-    // 計算中幾碼
+    const N = bet.numbers.length;
     const matches = bet.numbers.filter(num => winningNumbers.includes(num));
-    const matchCount = matches.length;
+    const m = matches.length; // 重疊中獎的號碼數量
     
-    if (matchCount >= 3) {
-      prizeTiers[matchCount].push({
+    // 計算該玩家在 3, 4, 5 碼各中了幾注 (以排列組合計算)
+    // 組合數 = C(m, k) * C(N - m, 5 - k)
+    const wins5 = C(m, 5) * C(N - m, 0); // 5-k = 0
+    const wins4 = C(m, 4) * C(N - m, 1); // 5-k = 1
+    const wins3 = C(m, 3) * C(N - m, 2); // 5-k = 2
+    
+    if (wins5 > 0) {
+      prizeTiers[5].push({
         playerName: bet.playerName,
         numbers: bet.numbers,
-        multiplier: bet.multiplier,
+        winCount: wins5,
         matches: matches
       });
+      totalTier5Wins += wins5;
+    }
+    
+    if (wins4 > 0) {
+      prizeTiers[4].push({
+        playerName: bet.playerName,
+        numbers: bet.numbers,
+        winCount: wins4,
+        matches: matches
+      });
+      totalTier4Wins += wins4;
+    }
+    
+    if (wins3 > 0) {
+      prizeTiers[3].push({
+        playerName: bet.playerName,
+        numbers: bet.numbers,
+        winCount: wins3,
+        matches: matches
+      });
+      totalTier3Wins += wins3;
     }
   });
   
   // 渲染頭獎、二獎、三獎數量
-  DOM.countTier5.textContent = `${prizeTiers[5].length} 人`;
-  DOM.countTier4.textContent = `${prizeTiers[4].length} 人`;
-  DOM.countTier3.textContent = `${prizeTiers[3].length} 人`;
+  DOM.countTier5.textContent = `${totalTier5Wins} 注 / ${prizeTiers[5].length} 人`;
+  DOM.countTier4.textContent = `${totalTier4Wins} 注 / ${prizeTiers[4].length} 人`;
+  DOM.countTier3.textContent = `${totalTier3Wins} 注 / ${prizeTiers[3].length} 人`;
   
   // 渲染名單
   renderTierList(DOM.listTier5, prizeTiers[5], winningNumbers);
@@ -850,7 +855,7 @@ function renderTierList(container, winners, winningNumbers) {
     item.innerHTML = `
       <div class="winner-player-info">
         <span class="winner-name">${escapeHtml(winner.playerName)}</span>
-        <span class="winner-multiplier">${winner.multiplier} 柱</span>
+        <span class="winner-multiplier" style="color: var(--gold); font-weight:700;">中 ${winner.winCount} 注</span>
       </div>
       ${numbersHtml}
     `;
@@ -861,6 +866,19 @@ function renderTierList(container, winners, winningNumbers) {
 // ==========================================================================
 // 炫麗特效與輔助函式 (Helper Functions)
 // ==========================================================================
+
+// --- 排列組合計算 C(n, r) ---
+function C(n, r) {
+  if (r < 0 || r > n) return 0;
+  if (r === 0 || r === n) return 1;
+  let newR = r;
+  if (newR > n / 2) newR = n - newR;
+  let res = 1;
+  for (let i = 1; i <= newR; i++) {
+    res = res * (n - i + 1) / i;
+  }
+  return Math.round(res);
+}
 
 // --- 動態 Toast 訊息提示 ---
 function showToast(message, type = 'info') {

@@ -53,7 +53,7 @@
           <div class="card glass-card fade-in">
             <div class="card-header">
               <h2 class="card-title">✍️ 填寫投注單</h2>
-              <p class="card-subtitle">請挑選 5 個號碼並選擇投注柱數</p>
+              <p class="card-subtitle">請挑選 5 個或以上號碼（每組/注一萬元）</p>
             </div>
             
             <form id="bet-form" class="card-body">
@@ -76,23 +76,27 @@
               <!-- 1~17 點選選號區 -->
               <div class="form-group">
                 <div class="label-with-badge">
-                  <label>🔢 挑選 5 個幸運號碼</label>
-                  <span id="selected-badge" class="badge">已選 0 / 5</span>
+                  <label>🔢 挑選幸運號碼 (最少 5 個)</label>
+                  <span id="selected-badge" class="badge">已選 0 / 17</span>
                 </div>
                 <div class="number-grid" id="number-grid-player">
                   <!-- JS 動態生成 1~17 號按鈕 -->
                 </div>
               </div>
 
-              <!-- 下注柱數 Stepper -->
+              <!-- 投注金額與排列組合組數計算 -->
               <div class="form-group">
-                <label for="bet-multiplier">💎 投注下注數 (幾柱)</label>
-                <div class="stepper">
-                  <button type="button" class="stepper-btn" id="btn-dec">—</button>
-                  <input type="number" id="bet-multiplier" value="1" min="1" max="1000" readonly>
-                  <button type="button" class="stepper-btn" id="btn-inc">+</button>
+                <div class="bet-summary-card">
+                  <div class="summary-item">
+                    <span class="summary-label">📊 總投注組數</span>
+                    <span class="summary-value" id="summary-combos">0 組</span>
+                  </div>
+                  <div class="summary-item">
+                    <span class="summary-label">💰 總投注金額</span>
+                    <span class="summary-value text-glow-gold" id="summary-amount">0 元</span>
+                  </div>
                 </div>
-                <p class="form-help-text">下注柱數越多，中獎時彩金將依倍數加乘計算</p>
+                <p class="form-help-text">選滿 5 個號碼為 1 注（一萬元），選 6 個或以上將自動計算包牌排列組合的全部組數與金額。</p>
               </div>
 
               <!-- 按鈕區 -->
@@ -125,8 +129,12 @@
                   <span class="detail-value text-glow" id="ticket-player-name">—</span>
                 </div>
                 <div class="detail-row">
-                  <span class="detail-label">投注倍數</span>
-                  <span class="detail-value" id="ticket-multiplier">1 柱</span>
+                  <span class="detail-label">投注組數</span>
+                  <span class="detail-value" id="ticket-multiplier">0 組</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">總投注金額</span>
+                  <span class="detail-value text-glow-gold" id="ticket-amount">0 元</span>
                 </div>
               </div>
 
@@ -256,7 +264,7 @@
                       <tr>
                         <th>投注人</th>
                         <th>投注號碼</th>
-                        <th>下注柱數</th>
+                        <th>下注組數</th>
                         <th>投注時間</th>
                         <th>是否有效</th>
                         <th>操作</th>
